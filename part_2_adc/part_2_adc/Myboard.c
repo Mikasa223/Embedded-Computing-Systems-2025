@@ -50,7 +50,7 @@ void Board_init()
     PinMux_init();
     INPUTXBAR_init();
     SYNC_init();
-    ADC_init();
+  // ADC_init();
   //  EPWM_init(); // naim check
     GPIO_init();
     INTERRUPT_init();
