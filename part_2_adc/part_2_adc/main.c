@@ -1,16 +1,27 @@
+/// TODOS
+// consider adding static before variables where necessary
+// add author names and emails at the top
+// toggle myBoardLED0 on buffer fill ... refer to myBoardLED0_GPIO_init(); in Myboard.h 
+// figure out if it's possible to turn off EPWM1B to save power
+// verify that my PWM UP logic is correct through a picoscope & example code
+// check how to configure ADC_ACQPS_TICKS correctly inside configureADC 
+// introduce assembly-level optimizations
+// check changes_over_labcode.txt to include into report
+
 // Included Files
 #include "driverlib.h"
 #include "device.h"
 #include "sysctl.h"
 #include "Myboard.h"
 
-#define rData_length 250
-// conisder static next to variables ...
+// Macros
+#define ADC_BUF_LEN  250
+#define PWM_FREQ 1000
+#define SAMPLING_FREQ 1000
+#define ADC_ACQPS_TICKS 0000
+#define EPWM_TIMER_TBPRD (DEVICE_OSCSRC_FREQ/PWM_FREQ) // UP mode, count from 0 to EPWM_TIMER_TBPRD-1
 
-// ePWM period — gives 1 kHz PWM in up mode (period = TBPRD+1, i.e. counts from 0 to 2e6/1e3-1)
-#define EPWM_TIMER_TBPRD (2e6/1e3 - 1)
-
-// Clock configuration macro for setting up the PLL and system clock
+// Clock configuration macro for setting up the PLL and system clock (UNUSED FOR NOW)
 #define MY_DEVICE_SETCLOCK_CFG \
     (SYSCTL_OSCSRC_XTAL |       /* Use external crystal oscillator */ \
      SYSCTL_IMULT(40) |         /* Integer multiplier = 40 (e.g., 10 MHz * 40 = 400 MHz VCO) */ \
@@ -19,26 +30,13 @@
      SYSCTL_PLL_ENABLE)         /* Enable PLL */
 
 
-// Globals
-uint32_t sysClockFreq = 0; // Variable to store system clock frequency
-uint16_t cpuTimer0IntCount;
-uint16_t cpuTimer1IntCount;
-uint16_t adcResultA;           // This will hold the result from ADCA (ADC0)
-
-// why float & int? unnecessary wasted space -- use uint16 instead and modify how you view it accordingly
-// float rData[rData_length];      // Raw ADC data buffer
-// int   rData_int[rData_length];      // Raw ADC data buffer in 16-bit
-
-
-uint16_t rawData[rData_length];
-float32_t measuredVals[rData_length];
-
-
-// ADC buffer index
+// Variables
+uint16_t rawData[ADC_BUF_LEN];
+float32_t measuredVals[ADC_BUF_LEN];
 uint16_t adcBufferIndex = 0;    // Current index for ADC data buffer
+uint32_t sysClockFreq = 0;
 
 // Function Prototypes
-__interrupt void cpuTimer0ISR(void);
 __interrupt void adcA1ISR(void);
 void initCPUTimers(void);
 void configCPUTimer(uint32_t, float, float);
@@ -46,147 +44,75 @@ void configureADC(void);
 void configureADCSOC(void);
 void initEPWM(uint32_t base);
 
+
 // Main
 void main(void){
     int i = 0;
     Device_init(); // Initializes device clock and peripherals
-
-
-    configureADC();     // Configure ADCA (ADC0)
-    configureADCSOC();  // Configure SOC for ADCA
-
     Interrupt_initModule();     // Initializes PIE and clears PIE registers.
     Interrupt_initVectorTable(); // Initializes the PIE vector table
 
-    Board_init();
-
-    // Clock configuration — commented out, can be used to explicitly set PLL (last option in the macro) (apply the clk congif macro defined above)
-    // SysCtl_setClock(MY_DEVICE_SETCLOCK_CFG);
-
-
-    // Register ISRs for each CPU Timer interrupt
-    //Interrupt_register(INT_TIMER0, &cpuTimer0ISR);
-    //Interrupt_register(INT_ADCA1, &adcA1ISR); // Register ADC interrupt
-
+    // TIMER
     initCPUTimers();  // Initialize the Device Peripheral timers
-
-    // Get the system clock frequency
-    sysClockFreq = SysCtl_getClock(DEVICE_OSCSRC_FREQ);
+    sysClockFreq = SysCtl_getClock(DEVICE_OSCSRC_FREQ);     // Get the system clock frequency
     configCPUTimer(CPUTIMER0_BASE, sysClockFreq, 40000); // fs in hertz
+    CPUTimer_enableInterrupt(CPUTIMER0_BASE); // interrupt to trigger ADC conversions
 
-    // Enable interrupts for CPU Timer and ADC
-    CPUTimer_enableInterrupt(CPUTIMER0_BASE);
-
-    // the below line allows for tmp interrupt propgation to pie then cpu, we don't want this, instead to feed directly to adc
-    //Interrupt_enable(INT_TIMER0); 
-    
+    // ADC
+    configureADC();     // Configure ADCA (ADC0)
+    configureADCSOC();  // Configure SOC for ADCA
+    Interrupt_register(INT_ADCA1, &adcA1ISR);
     Interrupt_enable(INT_ADCA1);
 
+    // PWM
+    SysCtl_disablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
+    PinMux_init();
+    SYNC_init();
+    initEPWM(EPWM1_BASE);     // Initialize ePWM settings
+    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_1); // Explicitly set prescaler values: no division (1:1)
+    SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);     // Re-enable time-base clock sync to start all ePWM counters
+    DEVICE_DELAY_US(100);  // Delay for 100 microseconds to settle the PLL
+
+    // start the timer
     CPUTimer_startTimer(CPUTIMER0_BASE);
 
-    ////////// PWM SECTION /////////////
-    // // Disable time-base clock sync before configuring ePWM
-
-    SysCtl_disablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
-
-    // Initialize ePWM settings
-    initEPWM(EPWM1_BASE);
-
-    // Explicitly set prescaler values: no division (1:1)
-    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_1);
-
-    // Re-enable time-base clock sync to start all ePWM counters
-    SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);
-
-
-
-     DEVICE_DELAY_US(100);  // Delay for 100 microseconds to settle the PLL
-
-
-    // DEBUGGING 
-
-    // // Read EPWM clock divider settings from the TBCTL register
-    // uint16_t clkdiv = (HWREGH(EPWM1_BASE + EPWM_O_TBCTL) & EPWM_TBCTL_CLKDIV_M) >> EPWM_TBCTL_CLKDIV_S;
-    // uint16_t hspclkdiv = (HWREGH(EPWM1_BASE + EPWM_O_TBCTL) & EPWM_TBCTL_HSPCLKDIV_M) >> EPWM_TBCTL_HSPCLKDIV_S;
-
-    // // Assume SYSCLK = 200 MHz
-    // uint32_t sysclk = 200000000U;
-
-    // // Calculate TBCLK frequency: SYSCLK / CLKDIV / (2 × HSPCLKDIV if HSPCLKDIV > 0)
-    // uint32_t tbclk = sysclk / (1 << clkdiv) / (hspclkdiv == 0 ? 1 : 2 * hspclkdiv);
-
-    // // Calculate expected ePWM frequency in up-down count mode: TBCLK / (2 × TBPRD)
-    // uint32_t pwm_freq = tbclk / (2 * EPWM_TIMER_TBPRD);
-
-
-
-
-
-
-    // Initialize rData and Sdata arrays
-    for (i = 0; i < rData_length; i++)
+    // Initialize rawData and measuredVals arrays
+    for (i = 0; i < ADC_BUF_LEN; i++)
     {
         rawData[i] = 0;
         measuredVals[i]=0;
     }
 
-    asm(" NOP");
-
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
 
+    // main loop
     while (1)
     {
         // Continuously check if buffer is filled for further processing
-        if (adcBufferIndex >= rData_length)
+        if (adcBufferIndex >= ADC_BUF_LEN)
         {
             asm(" NOP"); // debugging breakpoint
-            // Reset buffer index after filling
-            adcBufferIndex = 0;
-
-            // Process the buffer here or trigger further processing
-
+            adcBufferIndex = 0;  // Reset buffer index after filling
         }
     }
 }
 
-// Interrupt Service Routine for CPU Timer 0 ... since we've routed it directly to ADC, can i just remove it and disable TMR INT to reduce CPU overhead? 
-__interrupt void cpuTimer0ISR(void)
+
+// Initialize CPU Timers to a known state
+void initCPUTimers(void)
 {
-    // Trigger ADC conversion
-    //ADC_forceSOC(ADCA_BASE, ADC_SOC_NUMBER0);
+    // Initialize timer period to maximum
+    CPUTimer_setPeriod(CPUTIMER0_BASE, 0xFFFFFFFF);
 
+    // Initialize pre-scale counter to divide by 1 (SYSCLKOUT)
+    CPUTimer_setPreScaler(CPUTIMER0_BASE, 0);
 
+    // Make sure timer is stopped
+    CPUTimer_stopTimer(CPUTIMER0_BASE);
 
-    // Acknowledge this interrupt to receive more interrupts from group 1
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
-}
-
-// Interrupt Service Routine for ADC
-__interrupt void INT_myADCA_1_ISR(void)
-{
-
-    // Store ADC result in buffer
-    if (adcBufferIndex < rData_length)
-    {
-        static float32_t conversionFactor = (float32_t)3 / (4096 - 1);
-
-
-        rawData[adcBufferIndex] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
-        //rData_int[adcBufferIndex] = (int) (rData[adcBufferIndex] -40000);
-        measuredVals[adcBufferIndex] =(rawData[adcBufferIndex] * conversionFactor);
-        
-        adcBufferIndex++;
-    }
-
-    // Toggle GPIO pin 0 to signal that ADC result has been read and processed
-    //GPIO_togglePin(0);
-
-    // Clear ADC interrupt flag
-    ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
-
-    // Acknowledge interrupt in PIE
-    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
+    // Reload all counter register with period value
+    CPUTimer_reloadTimerCounter(CPUTIMER0_BASE);
 }
 
 // Configure CPU Timer
@@ -206,40 +132,15 @@ void configCPUTimer(uint32_t cpuTimer, float freq, float fs)
     CPUTimer_reloadTimerCounter(cpuTimer);
     CPUTimer_setEmulationMode(cpuTimer, CPUTIMER_EMULATIONMODE_STOPAFTERNEXTDECREMENT);
     CPUTimer_enableInterrupt(cpuTimer);
-
-    if (cpuTimer == CPUTIMER0_BASE) cpuTimer0IntCount = 0;
-    else if (cpuTimer == CPUTIMER1_BASE) cpuTimer1IntCount = 0;
 }
 
-// Initialize CPU Timers to a known state
-void initCPUTimers(void)
-{
-    // Initialize timer period to maximum
-    CPUTimer_setPeriod(CPUTIMER0_BASE, 0xFFFFFFFF);
-
-    // Initialize pre-scale counter to divide by 1 (SYSCLKOUT)
-    CPUTimer_setPreScaler(CPUTIMER0_BASE, 0);
-
-    // Make sure timer is stopped
-    CPUTimer_stopTimer(CPUTIMER0_BASE);
-
-    // Reload all counter register with period value
-    CPUTimer_reloadTimerCounter(CPUTIMER0_BASE);
-
-    cpuTimer0IntCount = 0;
-}
 
 // Configure ADC (Only ADCA is used here)
 void configureADC(void)
 {
-    // resoltuion if N else ....
-
     // Set the prescaler to divide the ADC clock by 4
     ADC_setPrescaler(ADCA_BASE, ADC_CLK_DIV_4_0);
 
-    
-    // Set the resolution to 16-bit and mode to single-ended (NOT RECOMMENDED BT TI BTW)
-    // you can't use 16 bit (differential) then ground one of the pins, you must adhere to the Vcm logic ... refer to perplixity covo nov 14th
     ADC_setMode(ADCA_BASE, ADC_RESOLUTION_12BIT, ADC_MODE_SINGLE_ENDED);
 
     // Set pulse positions to late
@@ -269,6 +170,30 @@ void configureADCSOC(void)
 }
 
 
+// Interrupt Service Routine for ADC
+__interrupt void adcA1ISR(void)
+{
+
+    // Store ADC result in buffer
+    if (adcBufferIndex < ADC_BUF_LEN)
+    {
+        static float32_t conversionFactor = 3.0 / (4096 - 1); // 12 bits digital to 3->0 linear scale (VREFHI = 3V, SRC: LaunchPad XL datasheet)
+        
+        rawData[adcBufferIndex] = ADC_readResult(ADCARESULT_BASE, ADC_SOC_NUMBER0);
+        measuredVals[adcBufferIndex] =(rawData[adcBufferIndex] * conversionFactor);
+
+        adcBufferIndex++;
+    }
+
+    // Clear ADC interrupt flag
+    ADC_clearInterruptStatus(ADCA_BASE, ADC_INT_NUMBER1);
+
+    // Acknowledge interrupt in PIE
+    Interrupt_clearACKGroup(INTERRUPT_ACK_GROUP1);
+}
+
+
+
 // Configure ePWM module
 void initEPWM(uint32_t base)
 {
@@ -282,10 +207,8 @@ void initEPWM(uint32_t base)
     // Initialize counter to 0
     EPWM_setTimeBaseCounter(base, 0U);
 
-    // Set compare values for A and B channels (DO I NEED TO CONFIG TWO CHANNELS, IS IT NOT POSSIBLE TO USE ONLY ONE AND SAVE PWR?)
-    // EVEN IF SO AGAIN DON'T MISTAKEN CMPBA WITH CHANNELS BA, HERE NO POWER IS WASTED JUST UNNECESSARY CONFIGS, FIND A WAY TO DISABLE B
-    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, (EPWM_TIMER_TBPRD+1) / 4 - 1);  // 25% duty
-    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_B, (EPWM_TIMER_TBPRD+1) / 4 - 1);  // 25% duty
+    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, EPWM_TIMER_TBPRD / 4 - 1);  // 25% duty
+    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_B, EPWM_TIMER_TBPRD / 4 - 1);  // 25% duty
 
     // Set mode to up-down counting
     EPWM_setTimeBaseCounterMode(base, EPWM_COUNTER_MODE_UP);
@@ -306,8 +229,4 @@ void initEPWM(uint32_t base)
     EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_B,
                                   EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);
 
-    // Enable interrupt on time-base counter equals zero
-    // EPWM_setInterruptSource(base, EPWM_INT_TBCTR_ZERO);
-    // EPWM_enableInterrupt(base);
-    // EPWM_setInterruptEventCount(base, 1U);
 }
