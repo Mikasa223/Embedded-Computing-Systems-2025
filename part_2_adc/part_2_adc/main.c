@@ -7,6 +7,9 @@
 // check how to configure ADC_ACQPS_TICKS correctly inside configureADC 
 // introduce assembly-level optimizations
 // check changes_over_labcode.txt to include into report
+// do the header docstring as /* */ instead of //s
+
+
 
 // Included Files
 #include "driverlib.h"
@@ -17,17 +20,10 @@
 // Macros
 #define ADC_BUF_LEN  250
 #define PWM_FREQ 1000
-#define SAMPLING_FREQ 1000
-#define ADC_ACQPS_TICKS 0000
-#define EPWM_TIMER_TBPRD (DEVICE_OSCSRC_FREQ/PWM_FREQ) // UP mode, count from 0 to EPWM_TIMER_TBPRD-1
-
-// Clock configuration macro for setting up the PLL and system clock (UNUSED FOR NOW)
-#define MY_DEVICE_SETCLOCK_CFG \
-    (SYSCTL_OSCSRC_XTAL |       /* Use external crystal oscillator */ \
-     SYSCTL_IMULT(40) |         /* Integer multiplier = 40 (e.g., 10 MHz * 40 = 400 MHz VCO) */ \
-     SYSCTL_FMULT_NONE |        /* No fractional multiplier */ \
-     SYSCTL_SYSDIV(0) |         /* Divide-by-1 for SYSCLK = 200 MHz */ \
-     SYSCTL_PLL_ENABLE)         /* Enable PLL */
+#define SAMPLING_FREQ 40e3
+#define ADC_ACQPS_TICKS 30
+#define TBCLK 100e6
+#define TBCLK_DIVIDER 4
 
 
 // Variables
@@ -46,16 +42,15 @@ void initEPWM(uint32_t base);
 
 
 // Main
-void main(void){
-    int i = 0;
+void main(void){ 
+    int i = 0;                                                                                            
     Device_init(); // Initializes device clock and peripherals
     Interrupt_initModule();     // Initializes PIE and clears PIE registers.
     Interrupt_initVectorTable(); // Initializes the PIE vector table
 
     // TIMER
     initCPUTimers();  // Initialize the Device Peripheral timers
-    sysClockFreq = SysCtl_getClock(DEVICE_OSCSRC_FREQ);     // Get the system clock frequency
-    configCPUTimer(CPUTIMER0_BASE, sysClockFreq, 40000); // fs in hertz
+    configCPUTimer(CPUTIMER0_BASE, DEVICE_SYSCLK_FREQ, SAMPLING_FREQ); // fs in hertz
     CPUTimer_enableInterrupt(CPUTIMER0_BASE); // interrupt to trigger ADC conversions
 
     // ADC
@@ -69,7 +64,7 @@ void main(void){
     PinMux_init();
     SYNC_init();
     initEPWM(EPWM1_BASE);     // Initialize ePWM settings
-    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_1, EPWM_HSCLOCK_DIVIDER_1); // Explicitly set prescaler values: no division (1:1)
+    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_4, EPWM_HSCLOCK_DIVIDER_1); // Explicitly set prescaler values: no division (1:1)
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);     // Re-enable time-base clock sync to start all ePWM counters
     DEVICE_DELAY_US(100);  // Delay for 100 microseconds to settle the PLL
 
@@ -157,7 +152,7 @@ void configureADC(void)
 void configureADCSOC(void)
 {
     // Configure SOC0 of ADCA to sample on ADC channel A0 (ADCINA0)
-    ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_CPU1_TINT0, ADC_CH_ADCIN0, 14);
+    ADC_setupSOC(ADCA_BASE, ADC_SOC_NUMBER0, ADC_TRIGGER_CPU1_TINT0, ADC_CH_ADCIN0, ADC_ACQPS_TICKS);
 
     // Set interrupt source to end of SOC0
     ADC_setInterruptSource(ADCA_BASE, ADC_INT_NUMBER1, ADC_SOC_NUMBER0);
@@ -196,9 +191,10 @@ __interrupt void adcA1ISR(void)
 
 // Configure ePWM module
 void initEPWM(uint32_t base)
-{
+{   
+    uint16_t period = (((float)TBCLK/TBCLK_DIVIDER)/PWM_FREQ) -1;
     // Set PWM period for up-down counting
-    EPWM_setTimeBasePeriod(base, EPWM_TIMER_TBPRD);
+    EPWM_setTimeBasePeriod(base, period);
 
     // Disable phase shift
     EPWM_setPhaseShift(base, 0U);
@@ -207,26 +203,18 @@ void initEPWM(uint32_t base)
     // Initialize counter to 0
     EPWM_setTimeBaseCounter(base, 0U);
 
-    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, EPWM_TIMER_TBPRD / 4 - 1);  // 25% duty
-    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_B, EPWM_TIMER_TBPRD / 4 - 1);  // 25% duty
+    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, period/4);  // 25% duty
 
     // Set mode to up-down counting
     EPWM_setTimeBaseCounterMode(base, EPWM_COUNTER_MODE_UP);
 
     // Use shadow register, load on counter zero
     EPWM_setCounterCompareShadowLoadMode(base, EPWM_COUNTER_COMPARE_A, EPWM_COMP_LOAD_ON_CNTR_ZERO);
-    EPWM_setCounterCompareShadowLoadMode(base, EPWM_COUNTER_COMPARE_B, EPWM_COMP_LOAD_ON_CNTR_ZERO);
 
     // === ePWM1A configuration ===
     EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_A,
                                   EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);
     EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_A,
                                   EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
-
-    // === ePWM1B configuration (mirrors ePWM1A) ===
-    EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_B,
-                                  EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);
-    EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_B,
-                                  EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPB);
 
 }

@@ -1,0 +1,22 @@
+[
+   {
+      "directory" : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM",
+      "command"   : "clang++ -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc\" -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/device\" -I\"C:/ti/C2000Ware_6_00_00_00/driverlib/f2837xd/driverlib\" -I\"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/include\" -DCPU1 -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM/syscfg\" -xc",
+      "file"      : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/Myboard.c"
+   },
+   {
+      "directory" : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM",
+      "command"   : "clang++ -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc\" -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/device\" -I\"C:/ti/C2000Ware_6_00_00_00/driverlib/f2837xd/driverlib\" -I\"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/include\" -DCPU1 -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM/syscfg\"",
+      "file"      : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/device/F2837xD_CodeStartBranch.asm"
+   },
+   {
+      "directory" : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM",
+      "command"   : "clang++ -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc\" -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/device\" -I\"C:/ti/C2000Ware_6_00_00_00/driverlib/f2837xd/driverlib\" -I\"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/include\" -DCPU1 -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM/syscfg\" -xc",
+      "file"      : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/device/device.c"
+   },
+   {
+      "directory" : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM",
+      "command"   : "clang++ -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc\" -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/device\" -I\"C:/ti/C2000Ware_6_00_00_00/driverlib/f2837xd/driverlib\" -I\"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/include\" -DCPU1 -I\"C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/CPU1_RAM/syscfg\" -xc",
+      "file"      : "C:/Users/abood/Embedded-Computing-Systems-2025/part_2_adc/part_2_adc/main.c"
+   }
+]

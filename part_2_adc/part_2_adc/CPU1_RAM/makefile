@@ -4,7 +4,7 @@
 
 SHELL = cmd.exe
 
-CG_TOOL_ROOT := C:/ti/ccs1210/ccs/tools/compiler/ti-cgt-c2000_22.6.0.LTS
+CG_TOOL_ROOT := C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS
 
 GEN_OPTS__FLAG := 
 GEN_CMDS__FLAG := 
@@ -15,7 +15,7 @@ ORDERED_OBJS += \
 "./device/F2837xD_CodeStartBranch.obj" \
 "./device/device.obj" \
 "../2837xD_RAM_lnk_cpu1.cmd" \
-"C:/ti/c2000/C2000Ware_5_02_00_00/driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib" \
+"C:/ti/C2000Ware_6_00_00_00/driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib" \
 $(GEN_CMDS__FLAG) \
 -llibc.a \
 
@@ -126,16 +126,10 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXE_OUTPUTS += \
-part_2_adc_pwm.out \
+part_2_adc_pwm.out 
 
 EXE_OUTPUTS__QUOTED += \
-"part_2_adc_pwm.out" \
-
-BIN_OUTPUTS += \
-part_2_adc_pwm.hex \
-
-BIN_OUTPUTS__QUOTED += \
-"part_2_adc_pwm.hex" \
+"part_2_adc_pwm.out" 
 
 
 # All Target
@@ -146,20 +140,13 @@ all: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 part_2_adc_pwm.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: C2000 Linker'
-	"C:/ti/ccs1210/ccs/tools/compiler/ti-cgt-c2000_22.6.0.LTS/bin/cl2000" -v28 -ml -mt --cla_support=cla1 --float_support=fpu32 --tmu_support=tmu0 --vcu_support=vcu2 -Ooff --advice:performance=all --define=CPU1 --diag_suppress=10063 --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"part_2_adc_pwm.map" --stack_size=0x200 --warn_sections -i"C:/ti/ccs1210/ccs/tools/compiler/ti-cgt-c2000_22.6.0.LTS/lib" -i"C:/ti/ccs1210/ccs/tools/compiler/ti-cgt-c2000_22.6.0.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="part_2_adc_pwm_linkInfo.xml" --entry_point=code_start --rom_model -o "part_2_adc_pwm.out" $(ORDERED_OBJS)
+	"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/bin/cl2000" -v28 -ml -mt --cla_support=cla1 --float_support=fpu32 --tmu_support=tmu0 --vcu_support=vcu2 -Ooff --advice:performance=all --define=CPU1 --diag_suppress=10063 --diag_warning=225 --diag_wrap=off --display_error_number --abi=eabi -z -m"part_2_adc_pwm.map" --stack_size=0x200 --warn_sections -i"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/lib" -i"C:/ti/ccs2030/ccs/tools/compiler/ti-cgt-c2000_22.6.2.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="part_2_adc_pwm_linkInfo.xml" --entry_point=code_start --rom_model -o "part_2_adc_pwm.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
-	@echo ' '
-
-part_2_adc_pwm.hex: $(EXE_OUTPUTS)
-	@echo 'Building secondary target: "$@"'
-	@echo 'Invoking: C2000 Hex Utility'
-	"C:/ti/ccs1210/ccs/tools/compiler/ti-cgt-c2000_22.6.0.LTS/bin/hex2000" --diag_wrap=off -o "part_2_adc_pwm.hex" $(EXE_OUTPUTS__QUOTED)
-	@echo 'Finished building secondary target: "$@"'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
+	-$(RM) $(EXE_OUTPUTS__QUOTED)
 	-$(RM) "Myboard.obj" "main.obj" "device\F2837xD_CodeStartBranch.obj" "device\device.obj" 
 	-$(RM) "Myboard.d" "main.d" "device\device.d" 
 	-$(RM) "device\F2837xD_CodeStartBranch.d" 

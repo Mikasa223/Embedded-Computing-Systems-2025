@@ -1,0 +1,9 @@
+* reduced rdata length
+* removed timer ISR to reduce CPU overhead == route directly to CPU
+* ADC RES from 16 to 12, mode from differential to single ended:
+
+- using 16-bit and single ended isn't recommended by TI (either 12bit/single or 16/differential)
+- to use differential, you can't ground one of the pins, as you must adhere to the common-mode voltage logic (refer to convo w/ PP NOV 14th)
+- so the best choice was 12/single for our case
+
+* since we're using the DriverLib API, there's no need to use EALLOW and EDIS (these are for when to use HWREG with protected regs)

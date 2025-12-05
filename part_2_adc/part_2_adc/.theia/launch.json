@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "part_2_adc_pwm",
+            "type": "ccs-debug",
+            "request": "launch",
+            "projectInfo": {
+                "name": "part_2_adc_pwm",
+                "resourceId": "/part_2_adc_pwm"
+            },
+            "launchSettings": {
+                "coresToLoadForProjectLaunch": [
+                    "C28xx_CPU1"
+                ]
+            }
+        }
+    ]
+}
