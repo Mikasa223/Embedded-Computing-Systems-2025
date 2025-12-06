@@ -205,30 +205,43 @@ __interrupt void adcA1ISR(void)
 
 // Configure ePWM module
 void initEPWM(uint32_t base)
-{   
-    uint16_t period = (((float)TBCLK/TBCLK_DIVIDER)/PWM_FREQ) -1;
-    // Set PWM period for up-down counting
-    EPWM_setTimeBasePeriod(base, period);
+{
+    uint32_t tbclk = TBCLK / TBCLK_DIVIDER;      // e.g. 100 MHz / 4 = 25 MHz
+    uint16_t tbprd = (tbclk / (2 * PWM_FREQ)) - 1;
 
-    // Disable phase shift
-    EPWM_setPhaseShift(base, 0U);
+    //tbclk = 100 MHz / 4 = 25 MHz
+    //TBPRD = (25e6 / (2 * 1000)) – 1 = 12499
+    //ePWM counter counts starting at 0, so the number of actual ticks is TBPRD + 1.
+    //fpwm = tbclk / (2 * (TBPRD + 1)) = 25e6 / (2 * 12500) = 1000 Hz
+
+    EPWM_setTimeBasePeriod(base, tbprd);
+    EPWM_setPhaseShift(base, 0);
     EPWM_disablePhaseShiftLoad(base);
+    EPWM_setTimeBaseCounter(base, 0);
 
-    // Initialize counter to 0
-    EPWM_setTimeBaseCounter(base, 0U);
+    float duty = 0.25f;                 // 25%
+    uint16_t cmpa = (uint16_t)((1.0f - duty) * (tbprd + 1.0f) + 0.5f);
 
-    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, period/4);  // 25% duty
+    EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, cmpa);
 
-    // Set mode to up-down counting
-    EPWM_setTimeBaseCounterMode(base, EPWM_COUNTER_MODE_UP);
+    EPWM_setTimeBaseCounterMode(base, EPWM_COUNTER_MODE_UP_DOWN);
 
-    // Use shadow register, load on counter zero
-    EPWM_setCounterCompareShadowLoadMode(base, EPWM_COUNTER_COMPARE_A, EPWM_COMP_LOAD_ON_CNTR_ZERO);
+    EPWM_setCounterCompareShadowLoadMode(base,
+                                         EPWM_COUNTER_COMPARE_A,
+                                         EPWM_COMP_LOAD_ON_CNTR_ZERO);
+    //
+    // Action-qualifier mapping (center-aligned PWM)
+    //
+    // When counter goes up and reaches CMPA → output HIGH
+    // When counter goes down and reaches CMPA → output LOW
+    //
+    EPWM_setActionQualifierAction(base,
+                                  EPWM_AQ_OUTPUT_A,
+                                  EPWM_AQ_OUTPUT_HIGH,
+                                  EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
 
-    // === ePWM1A configuration ===
-    EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_A,
-                                  EPWM_AQ_OUTPUT_HIGH, EPWM_AQ_OUTPUT_ON_TIMEBASE_ZERO);
-    EPWM_setActionQualifierAction(base, EPWM_AQ_OUTPUT_A,
-                                  EPWM_AQ_OUTPUT_LOW, EPWM_AQ_OUTPUT_ON_TIMEBASE_UP_CMPA);
-
+    EPWM_setActionQualifierAction(base,
+                                  EPWM_AQ_OUTPUT_A,
+                                  EPWM_AQ_OUTPUT_LOW,
+                                  EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
 }
