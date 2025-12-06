@@ -41,12 +41,26 @@ void configureADCSOC(void);
 void initEPWM(uint32_t base);
 
 
+#define MY_DEVICE_SETCLOCK_CFG \
+    (SYSCTL_OSCSRC_XTAL |       /* Use external crystal oscillator */ \
+     SYSCTL_IMULT(20) |         /* Integer multiplier = 20 (e.g., 10 MHz * 20 = 200 MHz VCO) */ \
+     SYSCTL_FMULT_NONE |        /* No fractional multiplier */ \
+     SYSCTL_SYSDIV(0) |         /* Divide-by-1 for SYSCLK = 200 MHz */ \
+     SYSCTL_PLL_ENABLE)         /* Enable PLL */
+
+
+
 // Main
 void main(void){ 
     int i = 0;                                                                                            
     Device_init(); // Initializes device clock and peripherals
     Interrupt_initModule();     // Initializes PIE and clears PIE registers.
     Interrupt_initVectorTable(); // Initializes the PIE vector table
+
+    SysCtl_setClock(MY_DEVICE_SETCLOCK_CFG);
+    DEVICE_DELAY_US(1000);  // Delay for 1s to settle the PLL
+
+
 
     // TIMER
     initCPUTimers();  // Initialize the Device Peripheral timers
