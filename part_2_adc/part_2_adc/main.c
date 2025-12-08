@@ -1,15 +1,10 @@
-/// TODOS
-// consider adding static before variables where necessary
-// add author names and emails at the top
-// toggle myBoardLED0 on buffer fill ... refer to myBoardLED0_GPIO_init(); in Myboard.h 
-// figure out if it's possible to turn off EPWM1B to save power
-// verify that my PWM UP logic is correct through a picoscope & example code
-// check how to configure ADC_ACQPS_TICKS correctly inside configureADC 
-// introduce assembly-level optimizations
-// check changes_over_labcode.txt to include into report
-// do the header docstring as /* */ instead of //s
+/****************** 
 
+Authors: Abdalrahim Naser & Lady Payan
+Emails: fk22040@bristol.ac.uk, lnicole.pc.2022@bristol.ac.uk
+Description: ePWM-ADC loopback example with a PWM frequency of 1khz and sampling frequency of 40khz
 
+******************/ 
 
 // Included Files
 #include "driverlib.h"
@@ -21,8 +16,8 @@
 #define ADC_BUF_LEN  250
 #define PWM_FREQ 1000
 #define SAMPLING_FREQ 40e3
-#define ADC_ACQPS_TICKS 30
-#define TBCLK 100e6
+#define ADC_ACQPS_TICKS 14
+#define TBCLK 100e6 // 200mhz / 2 (default divider value, reference: https://dev.ti.com/tirex/explore/node?node=A__ASXXwGbQ.ubt5o3S3jXEvA__C28X-ACADEMY__1sbHxUB__LATEST)
 #define TBCLK_DIVIDER 4
 
 
@@ -208,11 +203,6 @@ void initEPWM(uint32_t base)
 {
     uint32_t tbclk = TBCLK / TBCLK_DIVIDER;      // e.g. 100 MHz / 4 = 25 MHz
     uint16_t tbprd = (tbclk / (2 * PWM_FREQ)) - 1;
-
-    //tbclk = 100 MHz / 4 = 25 MHz
-    //TBPRD = (25e6 / (2 * 1000)) – 1 = 12499
-    //ePWM counter counts starting at 0, so the number of actual ticks is TBPRD + 1.
-    //fpwm = tbclk / (2 * (TBPRD + 1)) = 25e6 / (2 * 12500) = 1000 Hz
 
     EPWM_setTimeBasePeriod(base, tbprd);
     EPWM_setPhaseShift(base, 0);
