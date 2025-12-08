@@ -1,7 +1,7 @@
 /****************** 
 
-Authors: Abdalrahim Naser & Lady Payan
-Emails: fk22040@bristol.ac.uk, lnicole.pc.2022@bristol.ac.uk
+Authors: Abdalrahim Naser & Lady Nicole Payan Cepeda
+Emails: fk22040@bristol.ac.uk, wv22318@bristol.ac.uk
 Description: ePWM-ADC loopback example with a PWM frequency of 1khz and sampling frequency of 40khz
 
 ******************/ 
@@ -44,7 +44,6 @@ void initEPWM(uint32_t base);
      SYSCTL_PLL_ENABLE)         /* Enable PLL */
 
 
-
 // Main
 void main(void){ 
     int i = 0;                                                                                            
@@ -73,7 +72,7 @@ void main(void){
     PinMux_init();
     SYNC_init();
     initEPWM(EPWM1_BASE);     // Initialize ePWM settings
-    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_4, EPWM_HSCLOCK_DIVIDER_1); // Explicitly set prescaler values: no division (1:1)
+    EPWM_setClockPrescaler(EPWM1_BASE, EPWM_CLOCK_DIVIDER_4, EPWM_HSCLOCK_DIVIDER_1); // Explicitly set prescaler values
     SysCtl_enablePeripheral(SYSCTL_PERIPH_CLK_TBCLKSYNC);     // Re-enable time-base clock sync to start all ePWM counters
     DEVICE_DELAY_US(100);  // Delay for 100 microseconds to settle the PLL
 
@@ -209,11 +208,12 @@ void initEPWM(uint32_t base)
     EPWM_disablePhaseShiftLoad(base);
     EPWM_setTimeBaseCounter(base, 0);
 
-    float duty = 0.25f;                 // 25%
+    float duty = 0.25f;               // 25%
     uint16_t cmpa = (uint16_t)((1.0f - duty) * (tbprd + 1.0f) + 0.5f);
 
     EPWM_setCounterCompareValue(base, EPWM_COUNTER_COMPARE_A, cmpa);
 
+    // Setting up-dowm mode
     EPWM_setTimeBaseCounterMode(base, EPWM_COUNTER_MODE_UP_DOWN);
 
     EPWM_setCounterCompareShadowLoadMode(base,
@@ -235,3 +235,4 @@ void initEPWM(uint32_t base)
                                   EPWM_AQ_OUTPUT_LOW,
                                   EPWM_AQ_OUTPUT_ON_TIMEBASE_DOWN_CMPA);
 }
+
